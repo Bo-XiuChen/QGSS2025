@@ -1,0 +1,145 @@
+import matplotlib.pyplot as plt
+
+from qiskit import QuantumCircuit, generate_preset_pass_manager
+from qiskit.visualization import plot_histogram
+from qiskit.quantum_info import SparsePauliOp
+
+from qiskit_ibm_runtime import QiskitRuntimeService, SamplerV2 as Sampler, EstimatorV2 as Estimator
+
+from qiskit_aer import AerSimulator
+
+from qc_grader.challenges.qgss_2025 import grade_lab0_ex1, grade_lab0_ex2
+
+# Create a new circuit with a single qubit
+qc = QuantumCircuit(2)
+# Add a H gate to qubit 0
+qc.h(0)
+# Add a CNOT gate to qubit 1
+qc.cx(0, 1)
+# Return a drawing of the circuit using MatPlotLib ("mpl").
+qc.draw("mpl")
+
+qc = QuantumCircuit(3)
+
+### WRITE YOUR CODE BELOW HERE ###
+# Add a H gate to qubit 0
+qc.h(0)
+# Add a CNOT gate to qubits 0 and 1
+qc.cx(0,1)
+# Add a CNOT gate to qubits 1 and 2
+qc.cx(1,2)
+### YOUR CODE FINISHES HERE    ###
+
+# Return a drawing of the circuit using MatPlotLib ("mpl").
+qc.draw("mpl")
+
+grade_lab0_ex1(qc)
+
+
+coupling_map = [[0,1],[0,2]]
+
+
+from qiskit import transpile
+qc_transpiled = transpile(qc, coupling_map=coupling_map)
+
+qc_transpiled.draw("mpl")
+grade_lab0_ex2(qc_transpiled)
+
+
+# Add measurement operations
+qc.measure_all()
+
+# Set up the backend
+backend = AerSimulator()
+
+# Set up the sampler
+sampler = Sampler(mode=backend)
+
+# Submit the circuit to Sampler
+pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
+job = sampler.run(pm.run([qc]))
+
+# Get the results
+results_sampler = job.result()
+
+# Set up the Estimator
+estimator = Estimator(mode=backend)
+
+# Define some observables
+ZZZ = SparsePauliOp("ZZZ")
+ZZX = SparsePauliOp("ZZX")
+ZII = SparsePauliOp("ZII")
+XXI = SparsePauliOp("XXI")
+ZZI = SparsePauliOp("ZZI")
+III = SparsePauliOp("III")
+observables = [ZZZ, ZZX, ZII, XXI, ZZI, III]
+
+# Submit the circuit to Estimator
+pub = (qc, observables)
+job = estimator.run(pubs=[pub])
+
+# Get the results
+results_estimator = job.result()
+
+counts_list = results_sampler[0].data.meas.get_counts()
+print(f"  Outcomes : {counts_list}")
+display(plot_histogram(counts_list, title="GHZ state"))
+
+exp_values = results_estimator[0].data.evs
+observables_list = ["ZZZ", "ZZX", "ZII", "XXI", "ZZI", "III"]
+print(f"Expectation values: {list(zip(observables_list, exp_values))}")
+
+# Set up our plot
+container = plt.bar(observables_list, exp_values, width=0.8)
+# Label each axis
+plt.xlabel("Observables")
+plt.ylabel("Values")
+plt.show()
+
+from qc_grader.grader.grade import check_lab_completion_status
+check_lab_completion_status("qgss_2025")
+
+# Define the service. This allows you to access IBM QPUs.
+service = QiskitRuntimeService(name="qgss-2025")
+
+# Get a backend
+backend = service.least_busy(operational=True, simulator=False)
+print(f"We are using the {backend.name} quantum computer")
+
+### WRITE YOUR CODE BELOW HERE ###
+# Step 1. Map
+# You should have created a GHZ circuit above and assigned with variable `qc`
+qc = QuantumCircuit(3)
+
+### WRITE YOUR CODE BELOW HERE ###
+# Add a H gate to qubit 0
+qc.h(0)
+# Add a CNOT gate to qubits 0 and 1
+qc.cx(0,1)
+# Add a CNOT gate to qubits 1 and 2
+qc.cx(1,2)
+### YOUR CODE FINISHES HERE    ###
+
+# Return a drawing of the circuit using MatPlotLib ("mpl").
+qc.measure_all()
+
+# Step 2. Optimize
+pm = generate_preset_pass_manager(optimization_level=1, backend=backend)
+qc_transpiled = pm.run(qc) 
+
+# Step 3. Execute
+sampler = Sampler(mode=backend)
+job = sampler.run(pm.run([qc]))
+print(job.job_id())
+
+
+# Step 4. Post-process
+results = job.result()
+counts_list = results[0].data.meas.get_counts()
+
+### YOUR CODE FINISHES HERE    ###
+
+print(f"Outcomes : {counts_list}")
+plot_histogram(counts_list,title='GHZ state')
+
+
